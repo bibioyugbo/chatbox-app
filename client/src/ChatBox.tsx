@@ -7,11 +7,20 @@ interface menuType {
     description: string,
     price: string
 }
+interface orderType {
+    orderName:string,
+    orderPrice:string
+}
+
 type Message = {
     type: "bot" | "user";
     text: React.ReactNode;
 };
 
+type botOptions = {
+    label: string,
+    onClick: () => void
+}
 
 const options = [
     "Place an order - 1 ",
@@ -24,21 +33,33 @@ const options = [
 function ChatBox() {
     const [timestamp] = useState(new Date());
     const [value, setValue] = useState("");
+    const [isSelectedItem, setIsSelectedItem] = useState(false);
+    const [selectedItem, setSelectedItem] = useState(false)
     const [step, setStep] = useState("main");
-    const [botOptions, setBotOptions] = useState<string[]>([]);
+    const [botOptions, setBotOptions] = useState<botOptions[]>([]);
     const [messages, setMessages] = useState<Message[]>([]);
     const [menu, setMenu] = useState<menuType[]>([]);
+    const [order, setOrder] = useState<orderType[]>([]);
+
 
 
     const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
         setValue(e.target.value);
     };
+
+    const handlePlaceOrder =(isSelectedItem)=>{
+
+    }
+
+
+
     const buttonClicked =()=>{
         const input = parseInt(value, 10)
         if (isNaN(input) || value === ""){
             return
         }
         setMessages((prev) => [...prev, { type: "user", text: value }]);
+        setBotOptions([])
 
         if (step === 'main'){
             if (input !== 1 && input !== 99 && input !== 98 && input !== 97 && input !== 0) {
@@ -51,20 +72,20 @@ function ChatBox() {
                         setStep("ordering");
                         break;
                     case 99:
+                        if (!isSelectedItem) {
+                            setBotOptions([
+                                { label: "Place an order", onClick: () => handlePlaceOrder(isSelectedItem)},
+                            ]);
+                        } else {
+                            // setBotOptions(["Pay now", "Cancel Order"]);
+                        }
                         setMessages((prev) => [...prev,
                         {type: "bot",
                          text:
                              <div className={"flex flex-col gap-3"}>
-                                <div>Order placed. Proceed to payment?</div>
-                                 <div className={"flex gap-3"}>
-                                     <button className={"bg-red-300 font-bold text-[12px] p-2 text-center hover:shadow-[0_0_15px_rgba(239,68,68,0.8)] hover:brightness-110 cursor-pointer active:scale-105 transition-all duration-300 ease-in-out text-white rounded-[16px] "}>
-                                         Pay now
-                                     </button>
-                                     <button className={"bg-red-300 font-bold text-[12px] p-2 text-center hover:shadow-[0_0_15px_rgba(239,68,68,0.8)] hover:brightness-110 cursor-pointer active:scale-105 transition-all duration-300 ease-in-out text-white rounded-[16px] "}>
-                                         Pay now
-                                     </button>
-                                 </div>
-
+                                 {!isSelectedItem?
+                                     "No order to place.":"Order placed. Proceed to payment?"
+                                 }
                              </div>
 
                         }]);
@@ -86,13 +107,25 @@ function ChatBox() {
             if (input === 0) {
                 setMessages((prev) => [...prev, { type: "bot", text: "Order canceled ❌" }]);
                 setStep("main")
-            } else if (input >= 1 && input <= menu.length){
+            }
+            else if (input === 99) {
+                setMessages((prev) => [...prev, { type: "bot", text: "Order placed!" }]);
+                // setBotOptions(['Place new order'])
+                setStep("main")
+            }
+            else if (input >= 1 && input <= menu.length){
                 const selectedItem = menu[input - 1]
+                setSelectedItem(selectedItem)
                 setMessages((prev) => [...prev, {
                     type: "bot",
                     text: `You selected ${selectedItem.name} - ${selectedItem.price}`
                 }]);
-                setBotOptions(['Add to cart', 'Keep shopping', 'Main menu'])
+                setIsSelectedItem(true)
+                setBotOptions([
+                    { label: "Add to cart", onClick: () => addToCart(selectedItem)},
+                    { label: "Keep shopping", onClick: () => handlePlaceOrder() },
+                    { label: "Main menu", onClick: () => handlePlaceOrder() },
+                ]);
 
             }else {
                 setMessages((prev) => [...prev, { type: "bot", text: "Invalid selection. Try again." }]);
@@ -111,6 +144,32 @@ function ChatBox() {
             return `Yesterday at ${format(date, "h:mm a")}`;
         }
         return format(date, "MMM d, yyyy h:mm a"); // fallback for older dates
+    }
+    async function addToCart(item:menuType){
+        try{
+            const response = await fetch(`${BASE_URL}/order`,{
+                method:'POST',
+                headers:{
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    orderName: item.name,
+                    orderPrice: item.price
+                })
+
+            })
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`)
+            }
+            const result = await response.json()
+            const orderItem = result.responseData.order
+            console.log("Order Item",orderItem)
+            setOrder(orderItem)
+
+        }catch (e){
+            console.log(e)
+        }
+
     }
 
     async function placeOrder (){
@@ -209,10 +268,10 @@ function ChatBox() {
                 </div>
             ))}
             {botOptions &&
-                <div className={"flex gap-3"}>
-                    {botOptions.map((option, index)=>(
-                    <button key={index}  className={"bg-red-300 font-bold text-[12px] p-2 text-center hover:shadow-[0_0_15px_rgba(239,68,68,0.8)] hover:brightness-110 cursor-pointer active:scale-105 transition-all duration-300 ease-in-out text-white rounded-[16px] "}>
-                        {option}
+                <div className={"flex mb-5 gap-3"}>
+                    {botOptions.map((option:botOptions, index)=>(
+                    <button onClick={option.onClick} key={index}  className={"bg-red-300 font-bold text-[12px] px-4 py-2 text-center hover:shadow-[0_0_15px_rgba(239,68,68,0.8)] hover:brightness-110 cursor-pointer active:scale-105 transition-all duration-300 ease-in-out text-white rounded-[16px] "}>
+                        {option.label}
                     </button>
             ))}
                 </div>
