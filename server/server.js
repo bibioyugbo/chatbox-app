@@ -36,10 +36,12 @@ app.use("/menu", menuRoutes)
 app.use("/order", orderRoutes)
 
 app.use(express.static(path.join(__dirname, "client/dist")));
-
-app.get("/*", (req, res) => {
+app.use((req, res) => {
     res.sendFile(path.join(__dirname, "client/dist", "index.html"));
 });
+// app.get("/*", (req, res) => {
+//     res.sendFile(path.join(__dirname, "client/dist", "index.html"));
+// });
 app.listen(PORT,()=>{
     console.log(`Server is running on http://localhost:${PORT}`)
 })
