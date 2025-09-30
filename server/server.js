@@ -4,11 +4,20 @@ const app = express()
 const cors = require('cors')
 const menuRoutes = require('./routes/menuRoutes')
 const orderRoutes = require('./routes/orderRoutes')
-
+const {connectDB} = require("./config/database");
+const cookieParser = require("cookie-parser");
 
 const PORT = process.env.PORT || 3000
 
-app.use(cors())
+app.use(cors({
+    origin: "http://localhost:5173", // or your frontend URL
+    credentials: true, // ✅ allow cookies to be sent
+}
+))
+app.use(express.json());
+app.use(cookieParser());
+
+connectDB();
 
 app.get('/',(req,res)=>{
     res.send("Welcome to Chatbox app Backend");
