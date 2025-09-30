@@ -24,10 +24,10 @@ app.use(cookieParser());
 
 connectDB();
 
-app.get('/',(req,res)=>{
-    res.send("Welcome to Chatbox app Backend");
-
-})
+// app.get('/',(req,res)=>{
+//     res.send("Welcome to Chatbox app Backend");
+//
+// })
 app.get("/health", (req, res) => {
     res.send("OK");
 });
