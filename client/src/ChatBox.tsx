@@ -7,9 +7,18 @@ interface menuType {
     description: string,
     price: string
 }
-interface orderType {
-    orderName:string,
-    orderPrice:string
+// interface orderType {
+//     orderName:string,
+//     orderPrice:string
+// }
+interface fetchedItemType  {
+    _id: string,
+    sessionId: string,
+    orderName: string,
+    orderPrice: string,
+    createdAt: string,
+    updatedAt: string,
+    __v: number
 }
 
 type Message = {
@@ -33,25 +42,21 @@ const options = [
 function ChatBox() {
     const [timestamp] = useState(new Date());
     const [value, setValue] = useState("");
-    const [isSelectedItem, setIsSelectedItem] = useState(false);
-    const [selectedItem, setSelectedItem] = useState(false)
+    // const [isSelectedItem, setIsSelectedItem] = useState(false);
+    const [selectedItem, setSelectedItem] = useState<menuType | null>(null);
+
     const [step, setStep] = useState("main");
     const [botOptions, setBotOptions] = useState<botOptions[]>([]);
     const [messages, setMessages] = useState<Message[]>([]);
     const [menu, setMenu] = useState<menuType[]>([]);
-    const [order, setOrder] = useState<orderType[]>([]);
+    const [fetchedItems, setFetchedItem] = useState<fetchedItemType[]>([]);
+
 
 
 
     const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
         setValue(e.target.value);
     };
-
-    const handlePlaceOrder =(isSelectedItem)=>{
-
-    }
-
-
 
     const buttonClicked =()=>{
         const input = parseInt(value, 10)
@@ -72,32 +77,33 @@ function ChatBox() {
                         setStep("ordering");
                         break;
                     case 99:
-                        if (!isSelectedItem) {
-                            setBotOptions([
-                                { label: "Place an order", onClick: () => handlePlaceOrder(isSelectedItem)},
+                        if (selectedItem) {
+                            addToCart(selectedItem);
+                            setMessages((prev) => [
+                                ...prev,
+                                { type: "bot", text: `Order placed for ${selectedItem.name}! ✅` }
                             ]);
+                            setStep("main");
                         } else {
-                            // setBotOptions(["Pay now", "Cancel Order"]);
+                            setMessages((prev) => [
+                                ...prev,
+                                { type: "bot", text: "No item selected yet ❌" }
+                            ]);
                         }
-                        setMessages((prev) => [...prev,
-                        {type: "bot",
-                         text:
-                             <div className={"flex flex-col gap-3"}>
-                                 {!isSelectedItem?
-                                     "No order to place.":"Order placed. Proceed to payment?"
-                                 }
-                             </div>
-
-                        }]);
                         break;
                     case 98:
-                        console.log('order history')
+                        console.log('fetched items', fetchedItems)
+                        getCurrentOrder()
+
                         break;
                     case 97:
                         console.log('current order')
                         break;
                     case 0:
-                        console.log('cancel order')
+                        setMessages((prev) => [
+                            ...prev,
+                            { type: "bot", text: "Order canceled ❌" }
+                        ]);
                         break;
                 }
             }
@@ -108,23 +114,36 @@ function ChatBox() {
                 setMessages((prev) => [...prev, { type: "bot", text: "Order canceled ❌" }]);
                 setStep("main")
             }
-            else if (input === 99) {
-                setMessages((prev) => [...prev, { type: "bot", text: "Order placed!" }]);
-                // setBotOptions(['Place new order'])
-                setStep("main")
+            else if (input === 99 && selectedItem) {
+                addToCart(selectedItem);
+
+                setMessages((prev) => [
+                    ...prev,
+                    { type: "bot", text: `Order placed for ${selectedItem.name}! ✅` }
+                ]);
+                setStep("main");
+                setBotOptions([
+                    { label: "Place new order - 1", onClick: () => placeOrder() },
+                    { label: "Main menu", onClick: () => setStep('main') },
+                ]);
+            }
+            else if(input  === 98){
+                getCurrentOrder()
+
             }
             else if (input >= 1 && input <= menu.length){
-                const selectedItem = menu[input - 1]
-                setSelectedItem(selectedItem)
-                setMessages((prev) => [...prev, {
-                    type: "bot",
-                    text: `You selected ${selectedItem.name} - ${selectedItem.price}`
-                }]);
-                setIsSelectedItem(true)
+                // setStep("main")
+                const chosen = menu[input - 1];
+                setSelectedItem(chosen);
+                setMessages((prev) => [
+                    ...prev,
+                    { type: "bot", text: `You selected ${chosen.name} - ${chosen.price}` }
+                ]);
+                // setIsSelectedItem(true)
                 setBotOptions([
-                    { label: "Add to cart", onClick: () => addToCart(selectedItem)},
-                    { label: "Keep shopping", onClick: () => handlePlaceOrder() },
-                    { label: "Main menu", onClick: () => handlePlaceOrder() },
+                    { label: "Checkout order - 99", onClick: () => addToCart(chosen)},
+                    // { label: "Keep shopping - 1", onClick: () => handlePlaceOrder() },
+                    // { label: "Main menu", onClick: () => handlePlaceOrder() },
                 ]);
 
             }else {
@@ -152,6 +171,7 @@ function ChatBox() {
                 headers:{
                     'Content-Type': 'application/json',
                 },
+                credentials: "include",
                 body: JSON.stringify({
                     orderName: item.name,
                     orderPrice: item.price
@@ -162,10 +182,61 @@ function ChatBox() {
                 throw new Error(`HTTP error! status: ${response.status}`)
             }
             const result = await response.json()
-            const orderItem = result.responseData.order
+            const orderItem = result.responseData
             console.log("Order Item",orderItem)
-            setOrder(orderItem)
+            // setOrder(orderItem)
 
+        }catch (e){
+            console.log(e)
+        }
+
+    }
+    async function getCurrentOrder(){
+        try{
+            const response = await fetch(`${BASE_URL}/order`,{
+                method:'GET',
+                headers:{
+                    'Content-Type': 'application/json',
+                },
+                credentials: "include",
+            })
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`)
+            }
+            const result = await response.json()
+            const fetchedItems = result.responseData
+            console.log("Current order",fetchedItems)
+            setFetchedItem(fetchedItems)
+            setMessages((prev) => [
+                ...prev,
+                {
+                    type: "bot",
+                    text:
+                        <div className="bg-white rounded-md gap-2 p-2 flex flex-col">
+                            ORDER HISTORY
+                            {fetchedItems.map((item: fetchedItemType, index: number) => (
+                                <div key={index} className="flex border-b border-gray-200 justify-between">
+                                    <div>{item.orderName}</div>
+                                    <div>{item.orderPrice}</div>
+                                </div>
+                            ))}
+                            <div className="font-bold mt-2 flex justify-between">
+                                <div>Grand Total:</div>
+                                <div>
+                                    N
+                                    {fetchedItems.reduce(
+                                        (acc:number, item:fetchedItemType) =>
+                                            acc + parseFloat(item.orderPrice.toString().replace(/[^0-9.]/g, "")),
+                                        0
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                }
+            ]);
+            setBotOptions([
+                { label: "Pay now", onClick: () => placeOrder() },
+            ]);
         }catch (e){
             console.log(e)
         }
@@ -230,6 +301,7 @@ function ChatBox() {
         }
 
     }
+
 
 
 
