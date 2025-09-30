@@ -1,6 +1,8 @@
 const express = require('express')
 require('dotenv').config();
 const app = express()
+const path = require('path')
+
 const cors = require('cors')
 const menuRoutes = require('./routes/menuRoutes')
 const orderRoutes = require('./routes/orderRoutes')
@@ -14,6 +16,12 @@ app.use(cors({
     credentials: true, // ✅ allow cookies to be sent
 }
 ))
+
+app.use(express.static(path.join(__dirname, "client/dist")));
+
+app.get("*", (req, res) => {
+    res.sendFile(path.join(__dirname, "client/dist", "index.html"));
+});
 app.use(express.json());
 app.use(cookieParser());
 
